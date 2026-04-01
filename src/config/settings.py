@@ -1,0 +1,52 @@
+"""
+config/settings.py
+
+Global configuration loader with environment variable substitution.
+"""
+import os
+import re
+from pathlib import Path
+from typing import Any, Dict
+
+import yaml
+
+
+def _substitute_env_vars(value: Any) -> Any:
+    """Recursively substitute ${VAR} patterns with environment variables."""
+    if isinstance(value, str):
+        pattern = re.compile(r'\$\{(\w+)\}')
+        def replacer(match):
+            var_name = match.group(1)
+            env_val = os.environ.get(var_name)
+            if env_val is None:
+                raise ValueError(f"Environment variable {var_name} is not set")
+            return env_val
+        return pattern.sub(replacer, value)
+    elif isinstance(value, dict):
+        return {k: _substitute_env_vars(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [_substitute_env_vars(item) for item in value]
+    return value
+
+
+def load_config(config_path: str, substitute_env: bool = True) -> Dict:
+    """Load YAML configuration file.
+
+    Args:
+        config_path: Path to the YAML config file.
+        substitute_env: If True, replace ${VAR} with environment variable values.
+
+    Returns:
+        Parsed configuration dictionary.
+    """
+    config_path = Path(config_path)
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+
+    if substitute_env:
+        config = _substitute_env_vars(config)
+
+    return config

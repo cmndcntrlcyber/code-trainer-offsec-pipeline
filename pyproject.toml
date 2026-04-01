@@ -1,0 +1,31 @@
+[project]
+name = "code-trainer"
+version = "0.1.0"
+description = "6-phase pipeline to build and deploy a multimodal code generation model"
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "torch>=2.1.0",
+    "transformers>=4.40.0",
+    "accelerate>=0.27.0",
+    "datasets>=2.18.0",
+    "peft>=0.10.0",
+    "bitsandbytes>=0.43.0",
+    "trl>=0.8.0",
+    "playwright>=1.42.0",
+    "gitpython>=3.1.42",
+    "requests>=2.31.0",
+    "pillow>=10.2.0",
+    "wandb>=0.16.0",
+    "pyyaml>=6.0.1",
+    "tqdm>=4.66.0",
+    "numpy>=1.24.0",
+    "huggingface_hub>=0.21.0",
+    "python-dotenv>=1.0.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "black>=24.2.0",
+]

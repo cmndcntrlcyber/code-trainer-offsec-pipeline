@@ -1,0 +1,284 @@
+# Offensive Security Specialized Data Collection
+data_collection:
+  github_token: ${GITHUB_TOKEN}
+  repos_dir: ./data/offensive-security/repositories
+  captures_dir: ./data/offensive-security/captures
+  catalog_db: ./data/offensive-security/catalog.db
+  min_quality_score: 20
+
+  # Seed organizations and users
+  seed_orgs:
+    - cmndcntrlcyber
+    - BC-SECURITY
+    - BishopFox
+    - projectdiscovery
+    - GhostPack
+    - S3cur3Th1sSh1t
+    - fortra
+
+  seed_users:
+    - gentilkiwi
+    - swisskyrepo
+
+  # Topic-based discovery
+  topics:
+    # Exploitation & vulnerability research
+    - exploit
+    - exploit-development
+    - vulnerability
+    - vulnerability-research
+    - zero-day
+    - proof-of-concept
+    - buffer-overflow
+    - rce
+    - deserialization
+    - sql-injection
+    - xss
+    - ssrf
+    - command-injection
+    - kernel-exploit
+    - browser-exploit
+    # C2 frameworks
+    - c2
+    - c2-framework
+    - command-and-control
+    - rat
+    - remote-access-trojan
+    - beacon
+    - implant
+    - cobalt-strike
+    - metasploit
+    - sliver
+    - havoc
+    - mythic
+    - empire
+    - brute-ratel
+    # Reconnaissance
+    - recon
+    - reconnaissance
+    - enumeration
+    - osint
+    - subdomain-enumeration
+    - port-scanner
+    - asset-discovery
+    - attack-surface
+    - content-discovery
+    # Initial access
+    - phishing
+    - spearphishing
+    - social-engineering
+    - payload-delivery
+    - html-smuggling
+    - macro
+    # Post-exploitation
+    - post-exploitation
+    - lateral-movement
+    - pivoting
+    - persistence
+    - backdoor
+    - rootkit
+    - webshell
+    - privilege-escalation
+    - privesc
+    - process-injection
+    - dll-injection
+    - token-manipulation
+    # Active Directory
+    - active-directory
+    - kerberoasting
+    - bloodhound
+    - ntlm-relay
+    - dcsync
+    - golden-ticket
+    - pass-the-hash
+    - adcs
+    - certificate-abuse
+    - azure-ad
+    # Evasion
+    - evasion
+    - defense-evasion
+    - av-bypass
+    - edr-bypass
+    - amsi-bypass
+    - etw-bypass
+    - unhooking
+    - obfuscation
+    - sandbox-evasion
+    - living-off-the-land
+    - lolbas
+    - fileless
+    - opsec
+    - syscall
+    # Credentials
+    - credential-dumping
+    - password-cracking
+    - password-spraying
+    - mimikatz
+    - hashcat
+    - brute-force
+    - phishing-kit
+    - evilginx
+    - mfa-bypass
+    # Payloads & shellcode
+    - payload
+    - shellcode
+    - shellcode-loader
+    - beacon-object-file
+    - bof
+    - reflective-dll
+    - dll-sideloading
+    - donut
+    - dropper
+    - stager
+    # Cloud & container
+    - cloud-security
+    - cloud-pentest
+    - aws-security
+    - azure-security
+    - gcp-security
+    - kubernetes-security
+    - container-escape
+    - iam-escalation
+    # Network attacks
+    - network-attack
+    - man-in-the-middle
+    - arp-spoofing
+    - responder
+    - wifi-attack
+    - scada
+    - ics-security
+    # Web application
+    - web-security
+    - web-exploitation
+    - owasp
+    - burp-extension
+    - api-security
+    - fuzzing
+    - waf-bypass
+    # Malware
+    - malware
+    - malware-development
+    - malware-analysis
+    - reverse-engineering
+    - ransomware
+    - botnet
+    - yara
+    # Mobile & IoT
+    - mobile-security
+    - android-security
+    - ios-security
+    - frida
+    - iot-security
+    - firmware-analysis
+    - hardware-hacking
+    # Red team operations
+    - red-team
+    - redteam
+    - red-teaming
+    - adversary-simulation
+    - purple-team
+    - penetration-testing
+    - pentest
+    - pentesting
+    - ethical-hacking
+    - bug-bounty
+    - offensive-security
+    - offensive-tool
+    - mitre-attack
+    - threat-emulation
+    # Crypto attacks
+    - cryptanalysis
+    - padding-oracle
+    - side-channel
+    # Windows internals
+    - windows-internals
+    - pe-format
+    - com-hijacking
+    - byovd
+    # Linux techniques
+    - linux-privesc
+    - container-breakout
+    - ebpf
+    - lkm-rootkit
+
+  # Stars-based search queries
+  search_queries:
+    # Python offensive tools
+    - "topic:exploit language:python stars:>5"
+    - "topic:red-team language:python stars:>5"
+    - "topic:pentest language:python stars:>5"
+    - "topic:osint language:python stars:>5"
+    - "topic:malware-analysis language:python stars:>5"
+    - "topic:c2 language:python stars:>5"
+    - "topic:recon language:python stars:>5"
+    - "topic:phishing language:python stars:>5"
+    - "mimikatz OR impacket OR empire OR bloodhound language:python stars:>10"
+    - "nuclei OR subfinder OR httpx language:go stars:>10"
+    # Go offensive tools
+    - "topic:c2 language:go stars:>10"
+    - "topic:pentest language:go stars:>5"
+    - "topic:red-team language:go stars:>5"
+    - "sliver OR chisel OR ligolo language:go stars:>10"
+    # C/C++ exploits and shellcode
+    - "topic:exploit language:c stars:>5"
+    - "topic:shellcode language:c stars:>3"
+    - "topic:kernel-exploit language:c stars:>3"
+    - "topic:buffer-overflow language:c stars:>3"
+    - "shellcode OR payload OR bof language:c stars:>5"
+    - "exploit OR poc OR cve language:cpp stars:>5"
+    # C# offensive tools
+    - "topic:pentest language:csharp stars:>5"
+    - "topic:red-team language:csharp stars:>5"
+    - "topic:evasion language:csharp stars:>3"
+    - "evasion OR bypass OR amsi language:csharp stars:>5"
+    - "sharp OR rubeus OR seatbelt language:csharp stars:>5"
+    # PowerShell offensive
+    - "topic:red-team language:powershell stars:>3"
+    - "topic:post-exploitation language:powershell stars:>3"
+    - "topic:active-directory language:powershell stars:>3"
+    - "bypass OR amsi OR privesc language:powershell stars:>3"
+    # Rust offensive
+    - "topic:red-team language:rust stars:>3"
+    - "topic:malware language:rust stars:>3"
+    - "implant OR loader OR evasion language:rust stars:>3"
+    # Nim offensive
+    - "topic:red-team language:nim stars:>2"
+    - "topic:evasion language:nim stars:>2"
+    # Cross-language technique searches
+    - "topic:privilege-escalation stars:>10"
+    - "topic:lateral-movement stars:>5"
+    - "topic:persistence stars:>5"
+    - "topic:credential-dumping stars:>5"
+    - "topic:process-injection stars:>5"
+    - "topic:dll-injection stars:>5"
+    - "topic:token-manipulation stars:>3"
+    - "topic:kerberoasting stars:>5"
+    - "topic:ntlm-relay stars:>3"
+    - "topic:adcs stars:>3"
+    - "topic:cloud-pentest stars:>5"
+    - "topic:container-escape stars:>3"
+    - "topic:firmware-analysis stars:>5"
+    - "topic:waf-bypass stars:>5"
+    - "topic:api-security stars:>5"
+
+  languages:
+    - Python
+    - C
+    - C++
+    - C#
+    - Go
+    - Ruby
+    - Rust
+    - PowerShell
+    - Shell
+
+  extra_extensions:
+    PowerShell: [".ps1", ".psm1", ".psd1"]
+    Shell: [".sh", ".bash", ".zsh"]
+    Nim: [".nim"]
+
+  capture_workers: 8
+  viewport_width: 2560
+  viewport_height: 1440
+  font_size: 14
+  theme: "Default Dark+"

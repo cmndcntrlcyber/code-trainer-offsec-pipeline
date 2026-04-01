@@ -1,0 +1,86 @@
+# Code-Trainer V6 Configuration
+# Hardware: RTX 5060 Ti 16GB (Single GPU)
+
+# Phase 1: Data Collection
+data_collection:
+  github_token: ${GITHUB_TOKEN}
+  repos_dir: ./data/repositories
+  captures_dir: ./data/captures
+  catalog_db: ./data/catalog.db
+  repos_per_language: 500
+  min_quality_score: 30
+  languages:
+    - Python
+    - JavaScript
+    - TypeScript
+    - Java
+    - Go
+    - Rust
+    - C++
+    - C#
+  capture_workers: 8
+  viewport_width: 2560
+  viewport_height: 1440
+  font_size: 14
+  theme: "Default Dark+"
+
+# Phase 2: Preprocessing
+preprocessing:
+  dataset_name: ${HF_USERNAME}/code-trainer-v6-dataset
+  max_code_length: 8192
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  private: true
+
+# Phase 3: Vision Model (RTX 5060 Ti)
+vision_model:
+  vision_encoder: "microsoft/swin-base-patch4-window7-224"
+  decoder: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+  batch_size: 2
+  gradient_accumulation: 8
+  learning_rate: 2e-4
+  num_epochs: 10
+  max_seq_length: 2048
+  compute_dtype: "bfloat16"
+  gradient_checkpointing: true
+  use_8bit_optimizer: true
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  output_dir: ./models/vision_model
+
+# Phase 4: Qwen Fine-tuning (HF Skills Cloud)
+qwen_finetuning:
+  model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+  hardware: "a100-large"
+  validation_sweep:
+    - name: conservative
+      lora_r: 16
+      lora_alpha: 32
+      learning_rate: 1.5e-4
+      batch_size: 1
+      gradient_accumulation: 16
+    - name: standard
+      lora_r: 32
+      lora_alpha: 64
+      learning_rate: 2e-4
+      batch_size: 2
+      gradient_accumulation: 8
+    - name: aggressive
+      lora_r: 64
+      lora_alpha: 128
+      learning_rate: 3e-4
+      batch_size: 4
+      gradient_accumulation: 4
+  full_training:
+    num_epochs: 3
+    top_n_configs: 2
+  output_base: ${HF_USERNAME}/qwen14b-code-trainer-v6
+
+# Phase 5: Deployment (RTX 5060 Ti)
+deployment:
+  quantization: "Q4_K_M"
+  context_length: 4096
+  port: 8080
+  gguf_repo: ${HF_USERNAME}/qwen14b-code-trainer-v6-gguf

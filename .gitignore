@@ -1,0 +1,23 @@
+.venv
+venv
+.env
+__pycache__
+.DS_Store
+*.log
+*.pid
+
+# Collected data — cloned repos, SQLite catalogs, captures, HF datasets
+data/captures/
+data/repositories/
+data/catalog.db
+data/hf_dataset/
+data/sample-data/
+data/offensive-security/
+# Nested captures/repos/catalogs under any data subdirectory
+data/**/captures/
+data/**/repositories/
+data/**/catalog.db
+data/inputs/*
+data/outputs/*
+!data/inputs/.gitignore
+!data/outputs/.gitignore

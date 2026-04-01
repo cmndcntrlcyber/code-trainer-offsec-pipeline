@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  capture:
+    build:
+      context: ../../
+      dockerfile: phase1_data_collection/docker/Dockerfile
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - DISPLAY=:99
+    volumes:
+      - ../../data/repositories:/app/data/repositories
+      - ../../data/captures:/app/data/captures
+      - ../../data:/app/data
+    shm_size: "2gb"
+    deploy:
+      resources:
+        limits:
+          memory: 8g
