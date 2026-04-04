@@ -1,5 +1,7 @@
 # Code-Trainer V6
 
+[Final Dataset on Hugging Face](https://huggingface.co/datasets/cmndcntrlcyber/code-trainer-offsec-dataset)
+
 ## Overview
 
 This project implements a **6-phase pipeline** to build and deploy a multimodal code generation model on an RTX 5060 Ti 16GB (Blackwell). It produces a fine-tuned Qwen2.5-Coder-14B model capable of generating code from VS Code screenshot images.
