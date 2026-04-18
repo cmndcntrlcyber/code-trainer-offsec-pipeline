@@ -49,13 +49,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def encode_images_in_records(records: list[dict], show_progress: bool = True) -> list[dict]:
+def encode_images_in_records(
+    records: list[dict],
+    show_progress: bool = True,
+    max_dim: int = 1024,
+) -> list[dict]:
     """Encode screenshots for all records in-place. Drops records whose image fails."""
     out = []
     for i, rec in enumerate(records):
         cap_dir = Path(rec["cap_dir"])
         try:
-            rec["image"] = encode_capture_dir(cap_dir)
+            rec["image"] = encode_capture_dir(cap_dir, max_dim=max_dim)
             out.append(rec)
         except Exception as e:
             logger.warning(f"Skipping {cap_dir.name}: image encode failed: {e}")
@@ -104,6 +108,9 @@ def main():
                         help="Skip image encoding (faster, text-only dataset)")
     parser.add_argument("--limit", type=int, default=None,
                         help="Limit number of captures (for testing)")
+    parser.add_argument("--image-max-dim", type=int, default=None,
+                        help="Max pixel dimension for WebP images "
+                             "(default: preprocessing.image_max_dim in config, or 1024)")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -114,9 +121,11 @@ def main():
     max_code_length = pp_cfg.get("max_code_length", 8192)
     train_ratio = pp_cfg.get("train_split", 0.8)
     val_ratio = pp_cfg.get("val_split", 0.1)
+    image_max_dim = args.image_max_dim or pp_cfg.get("image_max_dim", 1024)
 
     logger.info(f"Phase 2: Building dataset from {captures_dir}")
-    logger.info(f"Output: {output_dir}  Images: {not args.no_images}")
+    logger.info(f"Output: {output_dir}  Images: {not args.no_images}  "
+                f"Image max_dim: {image_max_dim}")
 
     # Step 1: Load records
     records = convert_captures_to_records(captures_dir, max_code_length=max_code_length)
@@ -130,8 +139,8 @@ def main():
 
     # Step 3: Encode images
     if not args.no_images:
-        logger.info("Encoding screenshots to base64 WebP...")
-        records = encode_images_in_records(records)
+        logger.info(f"Encoding screenshots to base64 WebP (max_dim={image_max_dim})...")
+        records = encode_images_in_records(records, max_dim=image_max_dim)
 
     # Step 4: Split
     splits = split_records(records, train_ratio=train_ratio, val_ratio=val_ratio)

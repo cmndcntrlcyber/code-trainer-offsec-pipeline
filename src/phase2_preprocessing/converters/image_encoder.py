@@ -19,12 +19,16 @@ WEBP_QUALITY = 85
 MAX_DIMENSION = 2560
 
 
-def encode_png_to_base64_webp(png_path: Path, quality: int = WEBP_QUALITY) -> str:
+def encode_png_to_base64_webp(
+    png_path: Path,
+    quality: int = WEBP_QUALITY,
+    max_dim: int = MAX_DIMENSION,
+) -> str:
     """Convert a single PNG file to base64-encoded WebP bytes."""
     with Image.open(png_path) as img:
         # Downscale if needed while preserving aspect ratio
-        if max(img.size) > MAX_DIMENSION:
-            img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.LANCZOS)
+        if max(img.size) > max_dim:
+            img.thumbnail((max_dim, max_dim), Image.LANCZOS)
 
         buf = io.BytesIO()
         img.convert("RGB").save(buf, format="WEBP", quality=quality)
@@ -46,22 +50,31 @@ def select_representative_frame(capture_dir: Path) -> Path:
     return pngs[0]
 
 
-def encode_capture_dir(capture_dir: Path, quality: int = WEBP_QUALITY) -> str:
+def encode_capture_dir(
+    capture_dir: Path,
+    quality: int = WEBP_QUALITY,
+    max_dim: int = MAX_DIMENSION,
+) -> str:
     """
     Encode a capture directory's representative screenshot to base64 WebP.
 
     Args:
         capture_dir: Path to a capture hash directory (containing PNGs + metadata.json)
         quality: WebP quality (1-100)
+        max_dim: Max dimension for any axis; image is downscaled with aspect preserved.
 
     Returns:
         Base64-encoded WebP string
     """
     png = select_representative_frame(capture_dir)
-    return encode_png_to_base64_webp(png, quality=quality)
+    return encode_png_to_base64_webp(png, quality=quality, max_dim=max_dim)
 
 
-def encode_all_frames(capture_dir: Path, quality: int = WEBP_QUALITY) -> list[str]:
+def encode_all_frames(
+    capture_dir: Path,
+    quality: int = WEBP_QUALITY,
+    max_dim: int = MAX_DIMENSION,
+) -> list[str]:
     """
     Encode all PNG frames in a capture directory to base64 WebP.
     Used for multi-frame training samples.
@@ -72,4 +85,4 @@ def encode_all_frames(capture_dir: Path, quality: int = WEBP_QUALITY) -> list[st
     pngs = sorted(capture_dir.glob("*.png"))
     if not pngs:
         raise FileNotFoundError(f"No PNG files in {capture_dir}")
-    return [encode_png_to_base64_webp(p, quality=quality) for p in pngs]
+    return [encode_png_to_base64_webp(p, quality=quality, max_dim=max_dim) for p in pngs]
