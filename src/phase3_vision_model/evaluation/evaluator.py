@@ -73,7 +73,7 @@ class VisionModelEvaluator:
             visual_tokens = self.model.projector(vision_features)
 
             # Get text embeddings for prompt only (no labels in input for generation)
-            text_embeds = self.model.decoder.model.embed_tokens(input_ids)
+            text_embeds = self.model.decoder.model.model.embed_tokens(input_ids)
             combined = torch.cat([visual_tokens, text_embeds], dim=1)
 
             B, N = visual_tokens.shape[:2]

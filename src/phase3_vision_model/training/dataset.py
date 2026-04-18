@@ -38,6 +38,7 @@ class ScreenshotCodeDataset(Dataset):
         feature_extractor: AutoFeatureExtractor = None,
         max_seq_length: int = 2048,
         image_key: str = "image",
+        captures_dir: str | Path | None = None,
     ):
         self.dataset = load_from_disk(str(dataset_dir))[split]
         self.tokenizer = tokenizer
@@ -45,6 +46,7 @@ class ScreenshotCodeDataset(Dataset):
         self.max_seq_length = max_seq_length
         self.image_key = image_key
         self.has_images = image_key in self.dataset.features
+        self.captures_dir = Path(captures_dir) if captures_dir else None
 
         logger.info(
             f"Dataset [{split}]: {len(self.dataset)} samples, "
@@ -60,14 +62,19 @@ class ScreenshotCodeDataset(Dataset):
             img_bytes = base64.b64decode(sample[self.image_key])
             return Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-        # Fallback: load first PNG from cap_dir
-        cap_dir = Path(sample.get("cap_dir", ""))
-        pngs = sorted(cap_dir.glob("*.png"))
+        # Reconstruct cap_dir from file_hash + captures_dir if available
+        file_hash = sample.get("file_hash", "")
+        if self.captures_dir and file_hash:
+            cap_dir = self.captures_dir / file_hash[:2] / file_hash
+        else:
+            cap_dir = Path(sample.get("cap_dir", ""))
+
+        pngs = sorted(cap_dir.glob("*.png")) if cap_dir.exists() else []
         if pngs:
             return Image.open(pngs[0]).convert("RGB")
 
         # Last resort: blank image
-        logger.warning(f"No image for sample {sample.get('file_hash')} — using blank")
+        logger.warning(f"No image for sample {file_hash} — using blank")
         return Image.new("RGB", (224, 224), color=(30, 30, 30))
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:

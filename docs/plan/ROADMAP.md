@@ -13,24 +13,26 @@ RTPI combines two workstreams into a unified local AI system:
 | **Training Pipeline** (Phases 1–5) | Build a multimodal code generation model from VS Code screenshots, fine-tune Qwen-14B via cloud GPU, and deploy as GGUF | `Code-Trainer-V6-RTX5060Ti-Single-GPU.md` |
 | **Inference & Agent Stack** (Phase 6) | Serve Qwen3.5-9B as primary local model with vLLM + Qwen-Agent + MCP tool integration | `Inference-Agent-Architecture.md` |
 
-**Hardware:** MSI RTX 5060 Ti 16GB Ventus 3X OC (Blackwell) — $520
-**Cloud Budget:** ~$77 (HuggingFace Skills A100)
-**Total Project Cost:** ~$597
+**Hardware:** MSI RTX 5060 Ti 16GB Ventus 3X OC (Blackwell) — $520 — **inference only (Phase 6)**
+**Cloud Budget:** ~$140 (HF Skills A100 — Phase 3 vision + Phase 4 Qwen-14B)
+**Total Project Cost:** ~$660
+
+> **Strategy change (2026-04-15):** Phase 3 vision model training pivots from local RTX 5060 Ti to cloud A100. The 5060 Ti's 128-bit memory bus and 16GB VRAM make end-to-end vision+decoder training too slow and memory-tight to iterate on; A100 40GB allows larger batches, faster epochs, and the same toolchain already wired for Phase 4. The 5060 Ti is reserved for Phase 5 GGUF conversion and Phase 6 inference.
 
 ---
 
-## Current Status (as of 2026-04-01)
+## Current Status (as of 2026-04-15)
 
 | Phase | Status | Output | Next Step |
 |-------|--------|--------|-----------|
 | 1 — Data Collection | ✓ Complete | 32,727 captures, 8 languages | — |
-| 2 — Preprocessing | ✓ Complete (local) | 32,658-sample HF dataset at `data/hf_dataset/` | **Push to Hub** (`upload_to_hub.py`) |
-| 3 — Vision Model Training | ⚠ Ready (blocked) | Infrastructure only | Awaits Phase 2 on Hub |
-| 4 — Qwen-14B Fine-tuning | ⚠ Ready (blocked) | Infrastructure only | Awaits Phase 2 on Hub |
+| 2 — Preprocessing | ✓ Complete | Dataset on HF Hub: `main` (text-only) + `v2-multimodal` (images) | — |
+| 3 — Vision Model Training | ⚠ Ready — cloud via **HF Jobs** | Launch wrapper + HF Jobs client scaffolded; CPU smoke test wired | Run `scripts/smoke_test_train_entry.sh`, then `launch_vision_training.py --wait` |
+| 4 — Qwen-14B Fine-tuning | ⚠ Ready (needs client audit) | AutoTrain client in place; may need HF Jobs pivot | Validate Phase 4A AutoTrain path actually runs custom trainer |
 | 5 — GGUF Deployment | ⚠ Ready (blocked) | Infrastructure only | Awaits Phase 4 checkpoint |
 | 6 — Inference & Agent Stack | ✗ Not started | — | Can begin independently |
 
-**Critical path blocker:** Phase 2 dataset must be pushed to HuggingFace Hub before Phases 3–4 can execute.
+**Critical path:** Phase 3 cloud port → Phase 4A sweep → Phase 4B full training → Phase 5 GGUF → Phase 6 serve. Phase 3 and Phase 4 can now run in parallel on cloud.
 
 ---
 
@@ -51,7 +53,7 @@ RTPI combines two workstreams into a unified local AI system:
 
 | # | Requirement | RTPI Phase | Status |
 |---|---|---|---|
-| 1 | Dataset Selection & Preparation | Phase 1 + Phase 2 | [x] Phase 1: 32,727 captures (0 invalid); Phase 2: 32,658-sample HF dataset built locally; **Hub upload pending** |
+| 1 | Dataset Selection & Preparation | Phase 1 + Phase 2 | [x] Phase 1: 32,727 captures (0 invalid); Phase 2: 32,658-sample dataset published to HF Hub at `cmndcntrlcyber/code-trainer-offsec-dataset` (public) — `main` text-only + `v2-multimodal` branch with base64 WebP images (1024×576, ~1.4 GB) |
 | 2 | Baseline Evaluation (pre-fine-tune metrics) | Phase 3 | [~] Infrastructure complete (evaluate.py); run before training |
 | 3 | Fine-Tuning (LoRA/QLoRA, PEFT) | Phase 3 (local) + Phase 4 (cloud) | [~] All training infrastructure complete; awaiting dataset on Hub |
 | 4 | Post-Fine-Tuning Evaluation + general benchmark | Phase 3/4 eval | [~] Infrastructure complete; runs automatically after training |
@@ -189,30 +191,30 @@ Phase 5: GGUF Deployment                     MCP Servers (filesystem,
 | Metric | Target | Actual |
 |--------|--------|--------|
 | Dataset built locally | Yes | 32,658 samples ✓ (at `data/hf_dataset/`) |
-| Dataset uploaded to HF Hub | Yes | **Pending** — run `upload_to_hub.py` to unblock Phases 3–4 |
-| Train/Val/Test split | 80/10/10 | 26,126 / 3,265 / 3,267 ✓ |
-| All samples have images + code | Yes | Text-only first pass; image encoding pass pending |
+| Dataset uploaded to HF Hub | Yes | ✓ `cmndcntrlcyber/code-trainer-offsec-dataset` (public, 175 MB Parquet) |
+| Train/Val/Test split | 80/10/10 | 26,100 / 3,270 / 3,270 ✓ (Hub split counts) |
+| All samples have images + code | Yes | Text-only first pass live on Hub; **image-encoding pass still pending** for true multimodal training |
 
 ---
 
-## Phase 3: Vision Model Training (RTX 5060 Ti — Local)
+## Phase 3: Vision Model Training (HF Skills A100 — Cloud)
 
-**Goal:** Train a multimodal vision-to-code model locally on the RTX 5060 Ti.
+**Goal:** Train a multimodal vision-to-code model on cloud A100 GPUs via HuggingFace Skills. Local RTX 5060 Ti training was abandoned — bandwidth and VRAM forced micro-batches that made epochs impractically slow.
 
-### Architecture
+### Architecture (unchanged)
 - **Vision Encoder:** Swin-B (frozen, 88M params, ~1.5GB BF16)
 - **Projector:** 2-layer MLP (~4M params, ~0.3GB)
-- **Decoder:** Qwen2.5-Coder-1.5B-Instruct (INT4 + LoRA r=16, ~1.0GB + 0.2GB)
-- **Total VRAM:** ~13.0GB (3.0GB headroom on 16GB)
+- **Decoder:** Qwen2.5-Coder-1.5B-Instruct (BF16 + LoRA r=16 on A100, no INT4 needed)
+- **Batch size on A100-large (40GB):** 8–16 (vs 2 on 5060 Ti) with grad_accum=4
 
 ### Completion Tracker
 
 #### Prerequisites
-- [ ] Phase 2 dataset pushed to HF Hub (built locally; **upload pending**)
-- [ ] RTX 5060 Ti with CUDA 12.x+ drivers installed
-- [ ] PyTorch with BF16 support verified
-- [ ] bitsandbytes, PEFT, and TRL packages installed
-- [ ] W&B account configured for experiment tracking
+- [x] Phase 2 dataset on HF Hub (`cmndcntrlcyber/code-trainer-offsec-dataset`)
+- [ ] **Image-encoding pass:** re-export dataset with base64 WebP image column (current Hub dataset is text-only)
+- [x] HuggingFace Skills account with A100-large access
+- [x] W&B account configured for experiment tracking
+- [ ] `phase3_vision_model/hf_skills/` module built (mirrors `phase4_qwen_finetuning/hf_skills/`)
 
 #### Implementation
 - [x] `phase3_vision_model/architecture/vision_encoder.py` — Swin-B encoder wrapper
@@ -229,24 +231,26 @@ Phase 5: GGUF Deployment                     MCP Servers (filesystem,
 - [x] `phase3_vision_model/scripts/evaluate.py` — Standalone evaluation entry point
 - [x] `phase3_vision_model/scripts/export.py` — LoRA merge + export
 
-#### Training Configuration
+#### Training Configuration (A100-large, 40GB)
 | Setting | Value |
 |---------|-------|
-| Batch size | 2 |
-| Gradient accumulation | 8 (effective: 16) |
+| Batch size | 8 |
+| Gradient accumulation | 4 (effective: 32) |
 | Sequence length | 2048 tokens |
-| Compute dtype | BF16 (Blackwell) |
-| Optimizer | 8-bit AdamW |
+| Compute dtype | BF16 |
+| Optimizer | AdamW (fused) |
 | Learning rate | 2e-4 |
-| Epochs | 10 |
+| Epochs | 3–5 |
 | Gradient checkpointing | Enabled |
+| Estimated cost | ~$20–35 (6–10h on A100 @ $3.20/hr) |
 
 #### Validation
-- [ ] VRAM usage stays within 16GB during training
-- [ ] BF16 mixed precision active (Blackwell tensor cores)
-- [ ] Gradient checkpointing reduces memory footprint
+- [ ] A100 job launches via HF Skills and streams W&B metrics
+- [ ] BF16 mixed precision active
+- [ ] Gradient checkpointing + fused AdamW keep VRAM <32GB
 - [ ] Model generates coherent code from test screenshots
 - [ ] W&B logs training curves correctly
+- [ ] Trained adapter pushed to HF Hub (`cmndcntrlcyber/code-trainer-vision-adapter`)
 
 #### Capstone Deliverables (Module 1)
 - [ ] Baseline evaluation recorded (pre-fine-tune metrics) → **Capstone Req #2**
@@ -476,32 +480,70 @@ Decisions already made based on research and benchmarking:
 
 | Phase | Component | Hardware | Budget | Actual | Status |
 |-------|-----------|----------|--------|--------|--------|
-| — | RTX 5060 Ti 16GB | GPU | $520 | | [ ] Purchased |
-| 1 | Data Collection | CPU | $0 | $0 | [x] Complete (pipeline running) |
-| 2 | Preprocessing | CPU + Hub | $0 | $0 | [x] Complete (local build); Hub upload pending |
-| 3 | Vision Model Training | RTX 5060 Ti | $0 | | [ ] Not started |
+| — | RTX 5060 Ti 16GB | GPU (inference only) | $520 | | [ ] Purchased |
+| 1 | Data Collection | CPU | $0 | $0 | [x] Complete |
+| 2 | Preprocessing | CPU + Hub | $0 | $0 | [x] Complete — dataset on Hub |
+| 3 | Vision Model Training | A100-large (~8h) | ~$26 | | [ ] Cloud port pending |
 | 4A | Validation Sweep | 3× A100 (~2h) | ~$21 | | [ ] Not started |
 | 4B | Full Training | 2× A100 (~8h) | ~$56 | | [ ] Not started |
 | 5 | GGUF Conversion | RTX 5060 Ti | $0 | | [ ] Not started |
 | 6 | Inference Stack | RTX 5060 Ti | $0 | | [ ] Not started |
-| **Total** | | | **~$597** | | |
+| **Total** | | | **~$643** | | |
 
 ---
 
 ## Dependencies & Phase Order
 
 ```
-Phase 1 ──→ Phase 2 ──┬──→ Phase 3 (local) ──┐
-                       │                       ├──→ Phase 5 ──→ Phase 6
-                       └──→ Phase 4 (cloud) ──┘
+Phase 1 ──→ Phase 2 ──┬──→ Phase 3 (cloud A100) ──┐
+                       │                            ├──→ Phase 5 ──→ Phase 6
+                       └──→ Phase 4 (cloud A100) ──┘
 
+Phases 3 and 4 are independent cloud jobs and can run in parallel on HF Skills.
 Phase 6 can begin independently (model download, vLLM setup, MCP config)
-before Phases 3-5 complete — it uses pre-trained Qwen models, not the
-fine-tuned model from the training pipeline.
+before Phases 3–5 complete — it uses pre-trained Qwen models.
 ```
 
 **Critical path:** Phase 1 → Phase 2 → Phase 4 → Phase 5 (cloud training is the bottleneck)
 **Parallel work:** Phase 6 setup can proceed alongside Phases 1–5
+
+---
+
+## Next Phase Plan — Cloud Vision Training (2026-04-15)
+
+The immediate next phase is porting Phase 3 vision-model training to HF Skills A100 and running it in parallel with Phase 4A. Target: both sweeps launched within the same working session.
+
+### Step 1 — Dataset image-encoding pass (local CPU, ~2h)
+- [ ] Add `--include-images` path to `phase2_preprocessing/scripts/build_dataset.py` that attaches base64 WebP image bytes to each sample's `messages[1].content`.
+- [ ] Downscale screenshots to 896×896 (Swin-B input) before encoding to keep Parquet under ~10 GB.
+- [ ] Push as new revision/branch `v2-multimodal` on `cmndcntrlcyber/code-trainer-offsec-dataset` (keep text-only `main` for Phase 4 text fine-tuning).
+
+### Step 2 — Phase 3 cloud port (`src/phase3_vision_model/hf_skills/`, ~1 day)
+Mirror the Phase 4 pattern exactly — the job client, monitor, and sweep orchestrator are reusable.
+- [ ] `hf_skills/job_client.py` — thin wrapper (copy from Phase 4, rename entry script).
+- [ ] `hf_skills/train_entry.py` — A100 entry script: loads `v2-multimodal` revision, builds `CodeVisionModel`, runs trainer. Drop all bitsandbytes/INT4 code paths (A100 has the VRAM for BF16).
+- [ ] `configs/a100_training_args.py` — bs=8, grad_accum=4, epochs=3, LoRA r=16, fused AdamW.
+- [ ] `scripts/launch_vision_training.py` — single-job launcher (no sweep for v1, one config).
+- [ ] Remove 5060 Ti-specific assumptions in `training/trainer.py` (INT4 quant, 8-bit optim) behind a `device_profile: "a100" | "5060ti"` switch so local smoke tests still work.
+
+### Step 3 — Baseline + train + eval run (A100, ~8h, ~$26)
+- [ ] Run `evaluate.py` against base `Qwen2.5-Coder-1.5B-Instruct` on the test split → baseline metrics (Capstone Req #2).
+- [ ] Launch training job; stream to W&B project `rtpi-phase3-vision`.
+- [ ] On completion: post-FT eval with same metric script → comparison table.
+- [ ] Push adapter to `cmndcntrlcyber/code-trainer-vision-adapter` with model card.
+
+### Step 4 — Parallel Phase 4A kickoff
+Launch the 3-config Qwen-14B validation sweep on the text-only dataset revision the same day Phase 3 starts. Phases 3 and 4A are independent — no reason to serialize.
+
+### Step 5 — Cleanup
+- [ ] Update `CLAUDE.md` to reflect cloud-only training (5060 Ti = inference only).
+- [ ] Archive local-training notes in `docs/archive/local-5060ti-training.md`.
+- [ ] Remove `bitsandbytes` from required deps (keep optional for local smoke tests).
+
+### Risks & mitigations
+- **Dataset image re-encode doubles Hub storage.** Use a dataset branch, not a new repo, and keep only the revisions actively in use.
+- **HF Skills quota / queue.** Launch Phase 3 and 4A staggered by ~15 min so both don't contend for the same A100-large pool.
+- **Image-token length blow-up.** Swin-B produces 49 patch tokens after pooling; keep `max_seq_len=2048` and verify no sample truncates code tail.
 
 ---
 
@@ -511,4 +553,4 @@ fine-tuned model from the training pipeline.
 - Complex multi-file refactoring and unfamiliar API integration remain weak points
 - Cloud API fallback recommended for hardest 5-10% of tasks
 - Ollama tool calling for Qwen3.5 is broken (template mismatch, issue #14493)
-- RTX 5060 Ti 128-bit bus is the memory bandwidth bottleneck for autoregressive decoding
+- RTX 5060 Ti 128-bit bus is the memory bandwidth bottleneck for autoregressive decoding — and was the reason Phase 3 training was moved to cloud A100

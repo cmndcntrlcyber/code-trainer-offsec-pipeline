@@ -42,6 +42,10 @@ def main():
                         help="Skip pre-training baseline evaluation")
     parser.add_argument("--skip-posteval", action="store_true",
                         help="Skip post-training evaluation")
+    parser.add_argument("--start-epoch", type=int, default=0,
+                        help="Resume training from this epoch (0-indexed, loads epoch-N checkpoint)")
+    parser.add_argument("--resume-from", default=None,
+                        help="Checkpoint dir to load from (defaults to output-dir/epoch-{start-epoch})")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -49,10 +53,14 @@ def main():
 
     output_dir = Path(args.output_dir)
     dataset_dir = Path(args.dataset_dir)
+    captures_dir_str = config.get("data_collection", {}).get("captures_dir")
+    captures_dir = Path(captures_dir_str) if captures_dir_str else None
 
     logger.info("=" * 60)
     logger.info("PHASE 3: Vision Model Training")
     logger.info("=" * 60)
+
+    start_epoch = args.start_epoch
 
     # Build model
     model = CodeVisionModel(
@@ -61,10 +69,28 @@ def main():
         lora_r=vm_cfg.get("lora_r", 16),
         lora_alpha=vm_cfg.get("lora_alpha", 32),
         lora_dropout=vm_cfg.get("lora_dropout", 0.05),
+        device_profile=vm_cfg.get("device_profile", "a100"),
     )
 
+    # Resume from checkpoint if requested
+    if start_epoch > 0:
+        import torch
+        from peft import PeftModel
+        checkpoint_dir = Path(args.resume_from) if args.resume_from else output_dir / f"epoch-{start_epoch}"
+        logger.info(f"Resuming from checkpoint: {checkpoint_dir}")
+        projector_path = checkpoint_dir / "projector.pt"
+        if projector_path.exists():
+            model.projector.load_state_dict(torch.load(projector_path, map_location="cpu"))
+            logger.info("Projector weights loaded")
+        lora_path = checkpoint_dir / "decoder_lora"
+        if lora_path.exists():
+            model.decoder = PeftModel.from_pretrained(
+                model.decoder.base_model.model, str(lora_path)
+            )
+            logger.info("LoRA adapters loaded")
+
     # Baseline evaluation (Capstone Req #2)
-    if not args.skip_baseline:
+    if not args.skip_baseline and start_epoch == 0:
         logger.info("Running BASELINE evaluation (pre-fine-tune)...")
         from src.phase3_vision_model.evaluation.evaluator import VisionModelEvaluator
         from src.phase3_vision_model.training.collator import ScreenshotCodeCollator
@@ -76,6 +102,7 @@ def main():
             tokenizer=model.tokenizer,
             feature_extractor=model.vision_encoder.feature_extractor,
             max_seq_length=vm_cfg.get("max_seq_length", 2048),
+            captures_dir=captures_dir,
         )
         val_loader = DataLoader(
             val_ds, batch_size=2, shuffle=False,
@@ -92,7 +119,7 @@ def main():
 
     # Train (Capstone Req #3, #5)
     trainer = VisionModelTrainer(model, dataset_dir, output_dir, config)
-    trainer.train()
+    trainer.train(start_epoch=start_epoch)
 
     # Post-fine-tuning evaluation (Capstone Req #4)
     if not args.skip_posteval:
@@ -108,6 +135,7 @@ def main():
             tokenizer=model.tokenizer,
             feature_extractor=model.vision_encoder.feature_extractor,
             max_seq_length=vm_cfg.get("max_seq_length", 2048),
+            captures_dir=captures_dir,
         )
         val_loader = DataLoader(
             val_ds, batch_size=2, shuffle=False,

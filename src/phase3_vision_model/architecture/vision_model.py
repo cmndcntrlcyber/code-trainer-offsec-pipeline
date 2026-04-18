@@ -41,6 +41,7 @@ class CodeVisionModel(nn.Module):
         lora_alpha: int = 32,
         lora_dropout: float = 0.05,
         device: str = "cuda",
+        device_profile: str = "a100",
     ):
         super().__init__()
 
@@ -55,6 +56,7 @@ class CodeVisionModel(nn.Module):
             lora_alpha=lora_alpha,
             lora_dropout=lora_dropout,
             device_map=device,
+            device_profile=device_profile,
         )
         text_hidden = self.decoder.config.hidden_size  # 2048 for Qwen-1.5B
 
@@ -94,7 +96,7 @@ class CodeVisionModel(nn.Module):
         visual_tokens = self.projector(vision_features)            # [B, N, 2048]
 
         # Get text embeddings from decoder
-        text_embeds = self.decoder.model.embed_tokens(input_ids)   # [B, T, 2048]
+        text_embeds = self.decoder.model.model.embed_tokens(input_ids)   # [B, T, 2048]
 
         # Concatenate: [visual | text]
         combined = torch.cat([visual_tokens, text_embeds], dim=1)  # [B, N+T, 2048]

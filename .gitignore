@@ -6,6 +6,11 @@ __pycache__
 *.log
 *.pid
 
+# Training artifacts
+models/
+wandb/
+data/hf_dataset_multimodal/
+
 # Collected data — cloned repos, SQLite catalogs, captures, HF datasets
 data/captures/
 data/repositories/

@@ -54,12 +54,17 @@ class VisionModelTrainer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         vm_cfg = config.get("vision_model", {})
-        self.batch_size = vm_cfg.get("batch_size", 2)
-        self.grad_accum = vm_cfg.get("gradient_accumulation", 8)
+        self.device_profile = vm_cfg.get("device_profile", "a100")
+        self.batch_size = vm_cfg.get("batch_size", 8 if self.device_profile == "a100" else 2)
+        self.grad_accum = vm_cfg.get("gradient_accumulation", 4 if self.device_profile == "a100" else 8)
         self.lr = float(vm_cfg.get("learning_rate", 2e-4))
-        self.num_epochs = vm_cfg.get("num_epochs", 10)
+        self.num_epochs = vm_cfg.get("num_epochs", 3 if self.device_profile == "a100" else 10)
         self.max_seq_length = vm_cfg.get("max_seq_length", 2048)
-        self.use_8bit_optimizer = vm_cfg.get("use_8bit_optimizer", True)
+        self.use_8bit_optimizer = vm_cfg.get(
+            "use_8bit_optimizer", self.device_profile == "5060ti"
+        )
+        captures_dir = config.get("data_collection", {}).get("captures_dir")
+        self.captures_dir = Path(captures_dir) if captures_dir else None
 
         self.gpu_monitor = GPUMonitorCallback()
         self.best_model = BestModelCallback()
@@ -73,12 +78,14 @@ class VisionModelTrainer:
             tokenizer=self.model.tokenizer,
             feature_extractor=self.model.vision_encoder.feature_extractor,
             max_seq_length=self.max_seq_length,
+            captures_dir=self.captures_dir,
         )
         val_ds = ScreenshotCodeDataset(
             self.dataset_dir, split="validation",
             tokenizer=self.model.tokenizer,
             feature_extractor=self.model.vision_encoder.feature_extractor,
             max_seq_length=self.max_seq_length,
+            captures_dir=self.captures_dir,
         )
         train_loader = DataLoader(
             train_ds, batch_size=self.batch_size, shuffle=True,
@@ -98,7 +105,7 @@ class VisionModelTrainer:
         logger.info("Using standard AdamW optimizer")
         return AdamW(trainable_params, lr=self.lr, weight_decay=0.01)
 
-    def train(self):
+    def train(self, start_epoch: int = 0):
         import wandb
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -115,26 +122,40 @@ class VisionModelTrainer:
 
         total_steps = len(train_loader) * self.num_epochs // self.grad_accum
         warmup_steps = total_steps // 10
-        scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)
+        completed_steps = len(train_loader) * start_epoch // self.grad_accum
+        # Required for last_epoch > 0: optimizer must have initial_lr set
+        for group in optimizer.param_groups:
+            group.setdefault("initial_lr", self.lr)
+        scheduler = get_cosine_schedule_with_warmup(
+            optimizer, warmup_steps, total_steps, last_epoch=completed_steps - 1
+        )
 
+        wandb_project = (
+            self.config.get("vision_model", {})
+            .get("cloud", {})
+            .get("wandb_project", "rtpi-phase3-vision")
+        )
         wandb.init(
-            project="code-trainer-v6-phase3",
+            project=wandb_project,
+            resume="allow",
             config={
                 "model": "Qwen2.5-Coder-1.5B + Swin-B",
+                "device_profile": self.device_profile,
                 "batch_size": self.batch_size,
                 "grad_accum": self.grad_accum,
                 "effective_batch": self.batch_size * self.grad_accum,
                 "lr": self.lr,
                 "epochs": self.num_epochs,
                 "max_seq_length": self.max_seq_length,
+                "start_epoch": start_epoch,
             }
         )
 
         scaler = torch.amp.GradScaler("cuda", enabled=False)  # BF16 doesn't need scaler
-        global_step = 0
+        global_step = completed_steps
         best_val_loss = float("inf")
 
-        for epoch in range(self.num_epochs):
+        for epoch in range(start_epoch, self.num_epochs):
             self.model.train()
             epoch_loss = 0.0
             optimizer.zero_grad()

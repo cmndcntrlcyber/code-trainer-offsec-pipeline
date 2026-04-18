@@ -19,7 +19,9 @@ def _substitute_env_vars(value: Any) -> Any:
             var_name = match.group(1)
             env_val = os.environ.get(var_name)
             if env_val is None:
-                raise ValueError(f"Environment variable {var_name} is not set")
+                import warnings
+                warnings.warn(f"Environment variable {var_name} is not set; leaving placeholder")
+                return f"${{{var_name}}}"
             return env_val
         return pattern.sub(replacer, value)
     elif isinstance(value, dict):

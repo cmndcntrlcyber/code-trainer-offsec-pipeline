@@ -13,7 +13,7 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-from transformers import AutoFeatureExtractor, SwinModel
+from transformers import AutoImageProcessor, SwinModel
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +31,14 @@ class VisionEncoder(nn.Module):
             torch_dtype=torch.bfloat16,
             ignore_mismatched_sizes=True,
         )
-        self.feature_extractor = AutoFeatureExtractor.from_pretrained(model_id)
+        self.feature_extractor = AutoImageProcessor.from_pretrained(model_id)
         self.hidden_size = self.encoder.config.hidden_size  # 1024 for Swin-B
 
         # Freeze all parameters — encoder is a fixed feature extractor
         for param in self.encoder.parameters():
             param.requires_grad = False
 
+        self.encoder.to(device=device)
         self.encoder.eval()
         logger.info(
             f"Vision encoder loaded: hidden_size={self.hidden_size}, "
