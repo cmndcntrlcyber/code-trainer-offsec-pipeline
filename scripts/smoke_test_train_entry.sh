@@ -41,7 +41,11 @@ PY
 export WANDB_PROJECT="rtpi-phase3-smoke"
 export WANDB_MODE="${WANDB_MODE:-offline}"   # no online W&B noise for a smoke test
 
-echo "[smoke] profile=${PROFILE}  limit=${LIMIT}  out=${OUT_DIR}"
+# train_entry.py defaults HF_HOME to /workspace/.hf-cache for the A100 container.
+# Override locally so the cache lands somewhere writable.
+export HF_HOME="${HF_HOME:-${HOME}/.cache/huggingface}"
+
+echo "[smoke] profile=${PROFILE}  limit=${LIMIT}  out=${OUT_DIR}  HF_HOME=${HF_HOME}"
 rm -rf "${OUT_DIR}" "${DATASET_DIR}"
 
 uv run python -m src.phase3_vision_model.hf_skills.train_entry \
