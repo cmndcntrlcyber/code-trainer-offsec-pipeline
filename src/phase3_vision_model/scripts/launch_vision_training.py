@@ -81,6 +81,11 @@ def build_job_spec(
         "REPO_URL": repo_url,
         "REPO_REF": repo_ref,
     }
+    wandb_mode = os.environ.get("WANDB_MODE")
+    if wandb_mode:
+        env["WANDB_MODE"] = wandb_mode
+    elif not wandb_key:
+        env["WANDB_MODE"] = "offline"
     secrets = {"HF_TOKEN": hf_token}
     if wandb_key:
         secrets["WANDB_API_KEY"] = wandb_key
