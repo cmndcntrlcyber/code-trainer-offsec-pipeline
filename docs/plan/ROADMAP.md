@@ -21,18 +21,20 @@ RTPI combines two workstreams into a unified local AI system:
 
 ---
 
-## Current Status (as of 2026-04-15)
+## Current Status (as of 2026-05-02)
 
 | Phase | Status | Output | Next Step |
 |-------|--------|--------|-----------|
 | 1 — Data Collection | ✓ Complete | 32,727 captures, 8 languages | — |
-| 2 — Preprocessing | ✓ Complete | Dataset on HF Hub: `main` (text-only) + `v2-multimodal` (images) | — |
-| 3 — Vision Model Training | ⚠ Ready — cloud via **HF Jobs** | Launch wrapper + HF Jobs client scaffolded; CPU smoke test wired | Run `scripts/smoke_test_train_entry.sh`, then `launch_vision_training.py --wait` |
+| 2 — Preprocessing | ✓ Complete | Dataset on HF Hub: `main` (text-only) + `v2-multimodal` (images, base64 WebP, 26126/3265/3267) | — |
+| 3 — Vision Model Training | ✓ Complete | A100 job `69f55aeb98a8d679adfb8621` ran 5h 34m (2026-05-02). Adapter at `cmndcntrlcyber/code-trainer-vision-adapter` (`decoder_lora/` + `projector.pt` 6.57 MB) | Run post-FT eval (`scripts/evaluate.py`) for Capstone Req #4 |
 | 4 — Qwen-14B Fine-tuning | ⚠ Ready (needs client audit) | AutoTrain client in place; may need HF Jobs pivot | Validate Phase 4A AutoTrain path actually runs custom trainer |
 | 5 — GGUF Deployment | ⚠ Ready (blocked) | Infrastructure only | Awaits Phase 4 checkpoint |
 | 6 — Inference & Agent Stack | ✗ Not started | — | Can begin independently |
 
-**Critical path:** Phase 3 cloud port → Phase 4A sweep → Phase 4B full training → Phase 5 GGUF → Phase 6 serve. Phase 3 and Phase 4 can now run in parallel on cloud.
+**Critical path:** ~~Phase 3 cloud port~~ → Phase 4A sweep → Phase 4B full training → Phase 5 GGUF → Phase 6 serve. Phase 3 done; Phase 4 unblocked.
+
+> **CUDA pin (2026-05-02):** torch and torchvision are pinned to PyTorch's `cu128` wheel index via `[tool.uv.sources]` in `pyproject.toml`. The default HF Skills container `huggingface/transformers-pytorch-gpu:latest` ships an NVIDIA driver capped at CUDA 12.9, so cu13 wheels (uv's natural resolution for torch 2.11.0) crash at startup. cu128 supports both that container and the local 5060 Ti (Blackwell sm_120). `uv.lock` is now tracked; cloud install uses `uv sync --frozen`.
 
 ---
 
@@ -53,12 +55,12 @@ RTPI combines two workstreams into a unified local AI system:
 
 | # | Requirement | RTPI Phase | Status |
 |---|---|---|---|
-| 1 | Dataset Selection & Preparation | Phase 1 + Phase 2 | [x] Phase 1: 32,727 captures (0 invalid); Phase 2: 32,658-sample dataset published to HF Hub at `cmndcntrlcyber/code-trainer-offsec-dataset` (public) — `main` text-only + `v2-multimodal` branch with base64 WebP images (1024×576, ~1.4 GB) |
-| 2 | Baseline Evaluation (pre-fine-tune metrics) | Phase 3 | [~] Infrastructure complete (evaluate.py); run before training |
-| 3 | Fine-Tuning (LoRA/QLoRA, PEFT) | Phase 3 (local) + Phase 4 (cloud) | [~] All training infrastructure complete; awaiting dataset on Hub |
-| 4 | Post-Fine-Tuning Evaluation + general benchmark | Phase 3/4 eval | [~] Infrastructure complete; runs automatically after training |
-| 5 | Experiment Tracking (W&B) | Phase 3 & 4 | [~] W&B logging wired into Phase 3 trainer + Phase 4 sweep; configure WANDB_API_KEY |
-| 6 | Model Publishing (HF Hub + model card) | Phase 4B + Phase 5 | [~] uploader.py + model card template complete; awaiting training |
+| 1 | Dataset Selection & Preparation | Phase 1 + Phase 2 | [x] Phase 1: 32,727 captures (0 invalid); Phase 2: 32,658-sample dataset published to HF Hub at `cmndcntrlcyber/code-trainer-offsec-dataset` (public) — `main` text-only + `v2-multimodal` branch with base64 WebP images |
+| 2 | Baseline Evaluation (pre-fine-tune metrics) | Phase 3 | [~] Infrastructure complete (evaluate.py); not yet run — pending |
+| 3 | Fine-Tuning (LoRA/QLoRA, PEFT) | Phase 3 (cloud) + Phase 4 (cloud) | [x] Phase 3 complete: A100 5h 34m run, adapter at `cmndcntrlcyber/code-trainer-vision-adapter`. Phase 4 still pending. |
+| 4 | Post-Fine-Tuning Evaluation + general benchmark | Phase 3/4 eval | [~] Infrastructure complete; not yet run — needs adapter download + local eval or cloud eval job |
+| 5 | Experiment Tracking (W&B) | Phase 3 & 4 | [~] W&B wired but Phase 3 ran with `WANDB_MODE=offline` (no `WANDB_API_KEY` configured); offline run dir is inside the now-released container and was not captured. Configure `WANDB_API_KEY` for Phase 4. |
+| 6 | Model Publishing (HF Hub + model card) | Phase 4B + Phase 5 | [~] Phase 3 adapter + model card published; Phase 4B pending |
 | 7 | Reproducible Code (scripts, requirements.txt) | All phases | [x] All phases implemented (Phase 1–5 scripts complete) |
 
 ### Module 1 Capstone — Submission Deliverables
