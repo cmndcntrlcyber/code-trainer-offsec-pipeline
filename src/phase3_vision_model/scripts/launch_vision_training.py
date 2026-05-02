@@ -43,10 +43,10 @@ logger = logging.getLogger(__name__)
 def build_job_command(repo_url: str, repo_ref: str) -> list[str]:
     """Build the shell command that clones the repo, syncs deps, and runs train_entry.
 
-    Note: `uv sync` (no `--frozen`) is intentional — the published GitHub repo
-    does not currently track `uv.lock`, so `--frozen` would fail with
-    'Unable to find lockfile'. Without the flag, uv resolves from pyproject.toml
-    on first run and uses the lockfile iff one is present.
+    `uv sync --frozen` requires that `uv.lock` is tracked in the repo; we now
+    track it so the cloud job installs the exact resolved torch+cu128 wheels
+    that were validated locally, instead of re-resolving and risking a
+    container-driver mismatch.
     """
     script = (
         "set -euo pipefail\n"
@@ -54,7 +54,7 @@ def build_job_command(repo_url: str, repo_ref: str) -> list[str]:
         f'git clone --depth 1 --branch "{repo_ref}" "{repo_url}" /workspace\n'
         "cd /workspace\n"
         "pip install -q uv\n"
-        "uv sync\n"
+        "uv sync --frozen\n"
         "uv run python -m src.phase3_vision_model.hf_skills.train_entry\n"
     )
     return ["bash", "-lc", script]
