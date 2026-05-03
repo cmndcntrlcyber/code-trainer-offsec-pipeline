@@ -42,8 +42,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def build_eval_command(repo_url: str, repo_ref: str) -> list[str]:
+def build_eval_command(repo_url: str, repo_ref: str, limit: int | None = None) -> list[str]:
     """Clone repo + uv sync --frozen + run eval_entry inside the container."""
+    entry = "uv run python -m src.phase3_vision_model.hf_skills.eval_entry"
+    if limit is not None:
+        entry += f" --limit {int(limit)}"
     script = (
         "set -euo pipefail\n"
         "apt-get update -qq && apt-get install -y -qq git\n"
@@ -51,7 +54,7 @@ def build_eval_command(repo_url: str, repo_ref: str) -> list[str]:
         "cd /workspace\n"
         "pip install -q uv\n"
         "uv sync --frozen\n"
-        "uv run python -m src.phase3_vision_model.hf_skills.eval_entry\n"
+        f"{entry}\n"
     )
     return ["bash", "-lc", script]
 
@@ -65,6 +68,9 @@ def main():
                         help="Block until job completes")
     parser.add_argument("--split", default="test", choices=["test", "validation"])
     parser.add_argument("--num-samples", type=int, default=200)
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Cap each dataset split to first N rows before evaluation. "
+                             "Useful for cheap cloud smoke-tests of pipeline changes.")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -109,11 +115,16 @@ def main():
         "EVAL_NUM_SAMPLES": str(args.num_samples),
         "EVAL_SPLIT": args.split,
     }
+    wandb_mode = os.environ.get("WANDB_MODE")
+    if wandb_mode:
+        env["WANDB_MODE"] = wandb_mode
+    elif not os.environ.get("WANDB_API_KEY"):
+        env["WANDB_MODE"] = "offline"
     secrets = {"HF_TOKEN": hf_token}
 
     spec = VisionJobSpec(
         image=image,
-        command=build_eval_command(repo_url, repo_ref),
+        command=build_eval_command(repo_url, repo_ref, limit=args.limit),
         flavor=hardware,
         env=env,
         secrets=secrets,

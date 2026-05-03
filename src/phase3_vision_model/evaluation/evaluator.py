@@ -90,9 +90,12 @@ class VisionModelEvaluator:
                 eos_token_id=self.tokenizer.convert_tokens_to_ids("<|im_end|>"),
             )
 
+            # When generate() is called with inputs_embeds=, the returned tensor
+            # contains only the newly generated tokens — there is no input prefix
+            # to strip. The previous slice [combined.shape[1]:] discarded every
+            # generated token and produced empty predictions across the board.
             for b in range(output_ids.shape[0]):
-                pred_ids = output_ids[b][combined.shape[1]:]  # strip input prefix
-                pred_text = self.tokenizer.decode(pred_ids, skip_special_tokens=True)
+                pred_text = self.tokenizer.decode(output_ids[b], skip_special_tokens=True)
                 predictions.append(pred_text)
 
             if (i + 1) % 10 == 0:
