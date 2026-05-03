@@ -63,6 +63,5 @@ def build_training_args(
         # Performance
         dataloader_num_workers=4,
         dataloader_pin_memory=True,
-        group_by_length=True,
         remove_unused_columns=False,
     )
