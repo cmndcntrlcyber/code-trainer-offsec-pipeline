@@ -81,10 +81,19 @@ vision_model:
     repo_url: "https://github.com/cmndcntrlcyber/code-trainer-offsec-pipeline.git"
     repo_ref: "main"
 
-# Phase 4: Qwen Fine-tuning (HF Skills Cloud)
+# Phase 4: Qwen Fine-tuning (HF Skills Cloud — HF Jobs, mirrors Phase 3 pattern)
 qwen_finetuning:
   model: "Qwen/Qwen2.5-Coder-14B-Instruct"
   hardware: "a100-large"
+
+  # Text-only dataset (the main branch — no images needed for decoder fine-tuning)
+  dataset_id: "cmndcntrlcyber/code-trainer-offsec-dataset"
+  dataset_revision: "main"
+
+  # Common training knobs (overridden per sweep config below)
+  num_epochs_sweep: 1
+  max_seq_length: 2048
+
   validation_sweep:
     - name: conservative
       lora_r: 16
@@ -108,6 +117,17 @@ qwen_finetuning:
     num_epochs: 3
     top_n_configs: 2
   output_base: ${HF_USERNAME}/qwen14b-code-trainer-v6
+
+  # HF Jobs cloud-job settings — same shape as vision_model.cloud
+  cloud:
+    hardware: "a100-large"
+    wandb_project: "rtpi-phase4-qwen14b"
+    adapter_base: ${HF_USERNAME}/qwen14b-code-trainer-v6
+    timeout_seconds: 14400        # 4h per sweep job ceiling
+    poll_interval: 60
+    image: "huggingface/transformers-pytorch-gpu:latest"
+    repo_url: "https://github.com/cmndcntrlcyber/code-trainer-offsec-pipeline.git"
+    repo_ref: "main"
 
 # Phase 5: Deployment (RTX 5060 Ti)
 deployment:
