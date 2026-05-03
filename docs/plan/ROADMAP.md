@@ -27,10 +27,10 @@ RTPI combines two workstreams into a unified local AI system:
 |-------|--------|--------|-----------|
 | 1 — Data Collection | ✓ Complete | 32,727 captures, 8 languages | — |
 | 2 — Preprocessing | ✓ Complete | Dataset on HF Hub: `main` (text-only) + `v2-multimodal` (images, base64 WebP, 26126/3265/3267) | — |
-| 3 — Vision Model Training | ✓ Complete | A100 job `69f55aeb98a8d679adfb8621` ran 5h 34m (2026-05-02). Adapter at `cmndcntrlcyber/code-trainer-vision-adapter` (`decoder_lora/` + `projector.pt` 6.57 MB) | Run post-FT eval (`scripts/evaluate.py`) for Capstone Req #4 |
-| 4 — Qwen-14B Fine-tuning | ⚠ Ready (needs client audit) | AutoTrain client in place; may need HF Jobs pivot | Validate Phase 4A AutoTrain path actually runs custom trainer |
+| 3 — Vision Model Training | ✓ Complete | A100 job `69f55aeb98a8d679adfb8621` ran 5h 34m (2026-05-02). Adapter at `cmndcntrlcyber/code-trainer-vision-adapter`. Eval (test/200): finetuned `syntax_valid_rate` 0.61 vs 0.20 baseline (3.13×), `mean_edit_similarity` +16.8%; `exact_match`/`bleu_4` both 0 — model paraphrases, doesn't reconstruct verbatim. Details in `docs/eval/phase3-summary.md`. | — |
+| 4 — Qwen-14B Fine-tuning | ⚠ In flight (Phase 4A sweep) | Pivoted from broken AutoTrain path to HF Jobs (mirror Phase 3). 3 A100-large jobs submitted 2026-05-03: `qwen14b-{conservative,standard,aggressive}`. Adapters publish to `cmndcntrlcyber/qwen14b-code-trainer-v6-{name}`. | Wait for terminal stages, pick best by eval_loss, launch Phase 4B |
 | 5 — GGUF Deployment | ⚠ Ready (blocked) | Infrastructure only | Awaits Phase 4 checkpoint |
-| 6 — Inference & Agent Stack | ✗ Not started | — | Can begin independently |
+| 6 — Inference & Agent Stack | ⚠ Scaffolded | `src/phase6_inference/` — vllm_serve.sh, qwen_agent_client.py, mcp_servers.json, hot_swap.py, scripts/setup.md. Code-only; deployment is an inference-host task separate from training deps. | Build vLLM nightly on the 5060 Ti host, smoke-test agent + MCP |
 
 **Critical path:** ~~Phase 3 cloud port~~ → Phase 4A sweep → Phase 4B full training → Phase 5 GGUF → Phase 6 serve. Phase 3 done; Phase 4 unblocked.
 
