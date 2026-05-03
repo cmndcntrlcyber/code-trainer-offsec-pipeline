@@ -102,6 +102,20 @@ def main():
 
     logger.info(f"Loading dataset {dataset_id}@{dataset_revision}")
     ds = load_dataset(dataset_id, revision=dataset_revision)
+
+    # Optional dataset slice — lets us land a sweep run inside the HF Skills
+    # ~6.5h hard cap when full-epoch training would otherwise time out.
+    train_limit = params.get("train_limit") or os.environ.get("PHASE4_TRAIN_LIMIT")
+    val_limit = params.get("val_limit") or os.environ.get("PHASE4_VAL_LIMIT")
+    if train_limit:
+        n = min(int(train_limit), len(ds["train"]))
+        ds["train"] = ds["train"].select(range(n))
+        logger.info(f"  train sliced to first {n} rows (PHASE4_TRAIN_LIMIT)")
+    if val_limit and "validation" in ds:
+        n = min(int(val_limit), len(ds["validation"]))
+        ds["validation"] = ds["validation"].select(range(n))
+        logger.info(f"  validation sliced to first {n} rows (PHASE4_VAL_LIMIT)")
+
     ds = ds.map(lambda ex: _format_chat(ex, tokenizer),
                 remove_columns=[c for c in ds["train"].column_names if c != "messages"])
     logger.info(f"  splits: {list(ds.keys())}  train={len(ds['train'])} val={len(ds['validation'])}")

@@ -69,6 +69,8 @@ def build_job_spec(
     cloud_cfg: dict,
     hf_token: str,
     wandb_key: str | None,
+    train_limit: int | None = None,
+    val_limit: int | None = None,
 ) -> JobSpec:
     cfg = SWEEP_CONFIG_MAP[config_name]
     adapter_base = cloud_cfg.get("adapter_base") or qf_cfg.get("output_base")
@@ -91,6 +93,10 @@ def build_job_spec(
         "adapter_repo": adapter_repo,
         "output_dir": f"/tmp/phase4-{config_name}",
     }
+    if train_limit is not None:
+        params["train_limit"] = int(train_limit)
+    if val_limit is not None:
+        params["val_limit"] = int(val_limit)
 
     env = {
         "PHASE4_PARAMS_JSON": json.dumps(params),
@@ -99,6 +105,10 @@ def build_job_spec(
         "REPO_URL": cloud_cfg.get("repo_url", ""),
         "REPO_REF": cloud_cfg.get("repo_ref", "main"),
     }
+    if train_limit is not None:
+        env["PHASE4_TRAIN_LIMIT"] = str(int(train_limit))
+    if val_limit is not None:
+        env["PHASE4_VAL_LIMIT"] = str(int(val_limit))
     wandb_mode = os.environ.get("WANDB_MODE")
     if wandb_mode:
         env["WANDB_MODE"] = wandb_mode
@@ -136,6 +146,12 @@ def main():
     parser.add_argument("--only", default=None,
                         choices=[c.name for c in SWEEP_CONFIGS],
                         help="Submit just one named config instead of all 3")
+    parser.add_argument("--train-limit", type=int, default=None,
+                        help="Cap training rows (PHASE4_TRAIN_LIMIT in container). "
+                             "Use to fit inside the HF Skills ~6.5h hard timeout: "
+                             "26k full @ ~6.5h → ~6000 rows fits in ~1.5h.")
+    parser.add_argument("--val-limit", type=int, default=None,
+                        help="Cap validation rows (PHASE4_VAL_LIMIT). 200-500 is usually plenty.")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -148,8 +164,13 @@ def main():
         raise SystemExit("HF_TOKEN env var required to submit an HF Job")
 
     config_names = [args.only] if args.only else [c.name for c in SWEEP_CONFIGS]
-    specs = {name: build_job_spec(name, qf_cfg, cloud_cfg, hf_token, wandb_key)
-             for name in config_names}
+    specs = {
+        name: build_job_spec(
+            name, qf_cfg, cloud_cfg, hf_token, wandb_key,
+            train_limit=args.train_limit, val_limit=args.val_limit,
+        )
+        for name in config_names
+    }
 
     for name, spec in specs.items():
         _print_spec(name, spec)
