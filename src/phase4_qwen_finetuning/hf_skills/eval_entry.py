@@ -108,9 +108,13 @@ def main():
         dataloader_num_workers=2,
         remove_unused_columns=False,
     )
+    # SFTTrainer requires train_dataset even when only .evaluate() is called.
+    # Pass a 1-row slice as a no-op placeholder; it is never iterated since
+    # we call evaluate() directly.
     trainer = SFTTrainer(
         model=model,
         args=args,
+        train_dataset=ds.select(range(1)),
         eval_dataset=ds,
         processing_class=tokenizer,
     )
