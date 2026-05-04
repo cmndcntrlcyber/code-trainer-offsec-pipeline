@@ -1,0 +1,14 @@
+{
+  "adapter": "cmndcntrlcyber/qwen14b-code-trainer-v6-aggressive-full3",
+  "base_model": "Qwen/Qwen2.5-Coder-14B-Instruct",
+  "dataset": "cmndcntrlcyber/code-trainer-offsec-dataset@main",
+  "val_split": "validation",
+  "val_rows": 3265,
+  "metrics": {
+    "eval_loss": 0.512580931186676,
+    "eval_model_preparation_time": 0.0248,
+    "eval_runtime": 646.7215,
+    "eval_samples_per_second": 5.049,
+    "eval_steps_per_second": 1.263
+  }
+}

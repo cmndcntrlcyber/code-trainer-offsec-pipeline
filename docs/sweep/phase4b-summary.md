@@ -28,23 +28,31 @@
 }
 ```
 
-## Phase 4A vs Phase 4B (caveat: val sets differ)
+## Phase 4A vs Phase 4B — apples-to-apples (full val split)
 
 | Metric | Phase 4A `aggressive` (1 ep × full 26k) | Phase 4B `aggressive-full3` (3 ep × 8k) |
 |---|---|---|
-| eval_loss | **0.4724** | 0.5102 |
-| val rows | 3,265 | 500 |
+| **eval_loss (full val 3265)** | **0.4724** | 0.5126 |
+| eval_loss (500-row slice) | — | 0.5102 |
 | Total samples seen | 26,126 | 24,000 |
 | Job runtime | 6h 39m (timeout) | 4h 53m |
 
-**Direct comparison is invalid** — Phase 4B used `--val-limit 500` to shrink eval time, so the 0.5102 score is on a different (smaller, possibly easier or harder) val subset than Phase 4A's 0.4724. The fact that 4B is *worse* on its own slice is suggestive but not conclusive.
+**Phase 4A wins by 0.04** on the same 3,265-row validation set (eval-only A100 job
+[`69f89e5b9d85bec4d76f217e`](https://huggingface.co/jobs/cmndcntrlcyber/69f89e5b9d85bec4d76f217e),
+14m 37s, ~$0.80).
 
-Two plausible explanations:
+The 500-row slice in the Phase 4B training job wasn't a sampling fluke — the full-val
+number is even slightly worse (0.5126 vs 0.5102). The overfitting hypothesis is
+confirmed: 3 passes over 8k samples produced a measurably weaker adapter than 1 pass
+over the full 26k.
 
-1. **Val-split artifact.** A 500-row random head slice may simply contain a harder language mix (more Java/C++ vs more Python), inflating the loss.
-2. **Overfitting on the train slice.** 3 epochs over 8k rows = 24k samples seen with repetition; Phase 4A saw 26k unique samples once. Repetition may have memorized rather than generalized.
+**Decision: Phase 5 uses Phase 4A's `aggressive` adapter** at
+[`cmndcntrlcyber/qwen14b-code-trainer-v6-aggressive`](https://hf.co/cmndcntrlcyber/qwen14b-code-trainer-v6-aggressive),
+not `aggressive-full3`.
 
-To resolve: run a 5-min eval-only A100 job (~$0.30) of the `aggressive-full3` adapter against the full 3,265-row val split. That gives a comparable number.
+**Lesson for any rerun:** if we want more passes through the data, slice less
+aggressively — `--train-limit 16000-20000` × 2 epochs would cover similar compute
+while seeing more unique examples.
 
 ## Cost log
 
@@ -61,5 +69,5 @@ To resolve: run a 5-min eval-only A100 job (~$0.30) of the `aggressive-full3` ad
 ## Status
 
 - [x] Phase 4B trained checkpoint published (1.05 GB LoRA adapter)
-- [ ] Comparable eval_loss against full val split (eval-only A100 job)
-- [ ] Phase 5 GGUF conversion (merge LoRA → base, quantize to Q4_K_M)
+- [x] Comparable eval_loss against full val split — confirmed Phase 4A is better
+- [ ] **Phase 5 GGUF conversion uses `cmndcntrlcyber/qwen14b-code-trainer-v6-aggressive`** (Phase 4A) — merge LoRA → base, quantize to Q4_K_M
