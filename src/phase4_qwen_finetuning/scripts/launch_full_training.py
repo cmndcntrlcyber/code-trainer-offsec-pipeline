@@ -70,6 +70,8 @@ def build_job_spec(
     wandb_key: str | None,
     num_epochs: int,
     suffix: str = "fullN",
+    train_limit: int | None = None,
+    val_limit: int | None = None,
 ) -> JobSpec:
     cfg = SWEEP_CONFIG_MAP[config_name]
     adapter_base = cloud_cfg.get("adapter_base") or qf_cfg.get("output_base")
@@ -92,6 +94,10 @@ def build_job_spec(
         "adapter_repo": adapter_repo,
         "output_dir": f"/tmp/phase4b-{config_name}",
     }
+    if train_limit is not None:
+        params["train_limit"] = int(train_limit)
+    if val_limit is not None:
+        params["val_limit"] = int(val_limit)
 
     env = {
         "PHASE4_PARAMS_JSON": json.dumps(params),
@@ -100,6 +106,10 @@ def build_job_spec(
         "REPO_URL": cloud_cfg.get("repo_url", ""),
         "REPO_REF": cloud_cfg.get("repo_ref", "main"),
     }
+    if train_limit is not None:
+        env["PHASE4_TRAIN_LIMIT"] = str(int(train_limit))
+    if val_limit is not None:
+        env["PHASE4_VAL_LIMIT"] = str(int(val_limit))
     wandb_mode = os.environ.get("WANDB_MODE")
     if wandb_mode:
         env["WANDB_MODE"] = wandb_mode
@@ -163,6 +173,12 @@ def main():
                      help="Read top-N from docs/sweep/phase4a-summary.json")
     parser.add_argument("--suffix", default="fullN",
                         help="Adapter repo suffix (e.g. 'full3' for 3 epochs)")
+    parser.add_argument("--train-limit", type=int, default=None,
+                        help="Cap training rows. With 3 epochs on Qwen-14B, full 26k "
+                             "rows would be ~17h (well past the ~6.5h HF cap). "
+                             "8000 rows × 3 epochs ≈ 3.5h. 12000 rows × 3 epochs ≈ 5h.")
+    parser.add_argument("--val-limit", type=int, default=None,
+                        help="Cap validation rows (default: full ~3265 rows).")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -185,8 +201,11 @@ def main():
         raise SystemExit("HF_TOKEN env var required to submit an HF Job")
 
     specs = {
-        name: build_job_spec(name, qf_cfg, cloud_cfg, hf_token, wandb_key,
-                             num_epochs=num_epochs, suffix=suffix)
+        name: build_job_spec(
+            name, qf_cfg, cloud_cfg, hf_token, wandb_key,
+            num_epochs=num_epochs, suffix=suffix,
+            train_limit=args.train_limit, val_limit=args.val_limit,
+        )
         for name in config_names
     }
 
