@@ -129,9 +129,32 @@ qwen_finetuning:
     repo_url: "https://github.com/cmndcntrlcyber/code-trainer-offsec-pipeline.git"
     repo_ref: "main"
 
-# Phase 5: Deployment (RTX 5060 Ti)
+# Phase 5: Deployment — GGUF conversion runs on HF Jobs (a100-large for the
+# 144 GB RAM, not the GPU). Local llama.cpp serving is configured in
+# src/phase6_inference/. The local converter scripts under gguf/ are kept
+# for offline conversion when needed.
 deployment:
   quantization: "Q4_K_M"
   context_length: 4096
   port: 8080
   gguf_repo: ${HF_USERNAME}/qwen14b-code-trainer-v6-gguf
+
+  # Source adapter for Phase 5 conversion. Locked to Phase 4A aggressive
+  # (eval_loss 0.4724 on full val) per docs/sweep/phase4b-summary.md —
+  # outperformed Phase 4B's 3-epoch slice (0.5126).
+  source_adapter: ${HF_USERNAME}/qwen14b-code-trainer-v6-aggressive
+  base_model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+
+  # HF Jobs cloud-job settings — same shape as vision_model.cloud
+  cloud:
+    hardware: "a100-large"
+    timeout_seconds: 7200          # 2h ceiling
+    poll_interval: 60
+    image: "huggingface/transformers-pytorch-gpu:latest"
+    repo_url: "https://github.com/cmndcntrlcyber/code-trainer-offsec-pipeline.git"
+    repo_ref: "main"
+    # Quantization levels to produce + upload. Q4_K_M is the architecture-doc
+    # recommendation for the coder hot-swap target. Add Q5_K_M / Q8_0 if you
+    # want quality variants alongside.
+    quants:
+      - "Q4_K_M"
