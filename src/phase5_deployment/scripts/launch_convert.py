@@ -23,6 +23,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -102,6 +103,10 @@ def main():
     }
     secrets = {"HF_TOKEN": hf_token}
 
+    # HF Jobs labels accept only [A-Za-z0-9_=-]; the model id contains '.' (e.g.
+    # 'Qwen2.5-Coder-14B-Instruct') which the API rejects with HTTP 400. Sanitize.
+    label_slug = re.sub(r"[^A-Za-z0-9_=-]+", "-", base_model.split("/")[-1]).strip("-")
+
     spec = JobSpec(
         image=cloud_cfg.get("image", "huggingface/transformers-pytorch-gpu:latest"),
         command=build_convert_command(cloud_cfg.get("repo_url", ""), cloud_cfg.get("repo_ref", "main")),
@@ -109,7 +114,7 @@ def main():
         env=env,
         secrets=secrets,
         timeout_seconds=int(cloud_cfg.get("timeout_seconds", 7200)),
-        labels={"phase": "5", "project": "rtpi", "run": f"gguf-{base_model.split('/')[-1]}"},
+        labels={"phase": "5", "project": "rtpi", "run": f"gguf-{label_slug}"},
     )
 
     s = asdict(spec); s["secrets"] = {k: "<redacted>" for k in spec.secrets}
