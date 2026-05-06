@@ -61,12 +61,22 @@ def _ensure_llama_cpp():
         cwd=str(LLAMA_DIR),
     )
     # Python deps for convert_hf_to_gguf.py — install into the active uv-managed
-    # venv. uv venvs don't ship pip by default, so `python -m pip` would fail
-    # (the launcher invokes us via `uv run python -m ...`). Use `uv pip install`
-    # instead, which is pip-compatible and works inside the same venv.
+    # venv. Two gotchas worth a comment:
+    #   1. uv venvs don't ship pip by default, so `python -m pip` fails. We
+    #      use `uv pip install` instead — pip-compatible, same venv.
+    #   2. The project's pyproject.toml pins torch+torchvision to the cu128
+    #      nightly index. `uv pip install` therefore only resolves against
+    #      that index by default, and llama.cpp's requirements file pins
+    #      packages (e.g. transformers==5.5.1) that only live on PyPI.
+    #      `--index-strategy unsafe-best-match` lets uv consult PyPI as a
+    #      fallback for those packages, which is what we want here.
     reqs = LLAMA_DIR / "requirements" / "requirements-convert_hf_to_gguf.txt"
     if reqs.exists():
-        _run(["uv", "pip", "install", "-q", "-r", str(reqs)])
+        _run([
+            "uv", "pip", "install", "-q",
+            "--index-strategy", "unsafe-best-match",
+            "-r", str(reqs),
+        ])
 
 
 def _merge_adapter(base_model: str, adapter_repo: str, token: str, out_dir: Path):
