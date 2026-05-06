@@ -128,6 +128,16 @@ qwen_finetuning:
     image: "huggingface/transformers-pytorch-gpu:latest"
     repo_url: "https://github.com/cmndcntrlcyber/code-trainer-offsec-pipeline.git"
     repo_ref: "main"
+    # Catastrophic-forgetting check (Ready Tensor capstone requirement). Run
+    # via launch_benchmark.py with --adapter <repo> [--baseline]. GSM8K is the
+    # default — math reasoning is orthogonal to screenshot-to-code, so it
+    # cleanly detects forgetting on a 14B coder model.
+    benchmark:
+      task: "gsm8k"
+      num_fewshot: 0
+      batch_size: 16
+      timeout_seconds: 2400          # 40m HF runtime cap
+      wait_timeout_seconds: 7200     # 2h local poll budget
 
 # Phase 5: Deployment — GGUF conversion runs on HF Jobs (a100-large for the
 # 144 GB RAM, not the GPU). Local llama.cpp serving is configured in
@@ -148,7 +158,8 @@ deployment:
   # HF Jobs cloud-job settings — same shape as vision_model.cloud
   cloud:
     hardware: "a100-large"
-    timeout_seconds: 7200          # 2h ceiling
+    timeout_seconds: 7200          # HF runtime cap once job is RUNNING
+    wait_timeout_seconds: 21600    # Local launcher --wait budget (queue + run, 6h)
     poll_interval: 60
     image: "huggingface/transformers-pytorch-gpu:latest"
     repo_url: "https://github.com/cmndcntrlcyber/code-trainer-offsec-pipeline.git"

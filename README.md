@@ -123,3 +123,38 @@ python -m src.phase5_deployment.scripts.convert_to_gguf --config src/config/v6_c
 # --- Tests ---
 uv run pytest tests/
 ```
+
+## Experiment Tracking
+
+Training runs are logged to Weights & Biases. The launcher scripts pass a
+`WANDB_API_KEY` secret through to HF Jobs and fall back to `WANDB_MODE=offline`
+when no key is supplied — local dry-runs and air-gapped reproductions stay
+silent, while production runs publish to:
+
+* **Phase 3 vision model:** [`wandb.ai/cmndcntrlcyber/rtpi-phase3-vision`](https://wandb.ai/cmndcntrlcyber/rtpi-phase3-vision)
+* **Phase 4 Qwen-14B fine-tuning:** [`wandb.ai/cmndcntrlcyber/rtpi-phase4-qwen14b`](https://wandb.ai/cmndcntrlcyber/rtpi-phase4-qwen14b)
+
+To re-enable W&B for an eval-only retroactive run (e.g. to surface metrics for
+a job that originally ran offline):
+
+```bash
+WANDB_API_KEY=<key> WANDB_MODE=online \
+  python -m src.phase4_qwen_finetuning.scripts.launch_eval \
+  --adapter cmndcntrlcyber/qwen14b-code-trainer-v6-aggressive \
+  --val-limit 500 --wait
+```
+
+## Ready Tensor Submission
+
+This project is being prepared for the **Ready Tensor LLMED Module 1
+capstone** — see [`docs/ReadyTensor Submission/publication.md`](docs/ReadyTensor%20Submission/publication.md)
+for the technical publication, and [`docs/model_cards/`](docs/model_cards/) for
+the canonical Hugging Face Hub model cards. The catastrophic-forgetting
+benchmark (GSM8K via lm-evaluation-harness) is launched with:
+
+```bash
+python -m src.phase4_qwen_finetuning.scripts.launch_benchmark \
+  --adapter cmndcntrlcyber/qwen14b-code-trainer-v6-aggressive --wait
+python -m src.phase4_qwen_finetuning.scripts.launch_benchmark \
+  --adapter cmndcntrlcyber/qwen14b-code-trainer-v6-aggressive --baseline --wait
+```

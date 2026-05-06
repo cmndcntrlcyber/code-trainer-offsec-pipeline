@@ -128,10 +128,15 @@ def main():
     print(f"JOB_ID={job_id}")
 
     if args.wait:
+        # wait_timeout_seconds is the local --wait budget (queue + run); it is
+        # distinct from timeout_seconds, which is the HF runtime cap once the
+        # job has started. Conflating them caused us to cancel a job mid-queue
+        # at the 2h mark on the previous Phase 5 attempt.
         final = wait_for_job(
             job_id=job_id, token=hf_token,
             poll_interval=int(cloud_cfg.get("poll_interval", 60)),
-            timeout=int(cloud_cfg.get("timeout_seconds", 7200)),
+            timeout=int(cloud_cfg.get("wait_timeout_seconds",
+                                       cloud_cfg.get("timeout_seconds", 7200))),
         )
         logger.info(f"Final stage: {final}")
         if final != "COMPLETED":
