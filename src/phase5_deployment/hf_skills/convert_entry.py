@@ -60,23 +60,17 @@ def _ensure_llama_cpp():
         ["cmake", "--build", "build", "-j", "--target", "llama-quantize"],
         cwd=str(LLAMA_DIR),
     )
-    # Python deps for convert_hf_to_gguf.py — install into the active uv-managed
-    # venv. Two gotchas worth a comment:
-    #   1. uv venvs don't ship pip by default, so `python -m pip` fails. We
-    #      use `uv pip install` instead — pip-compatible, same venv.
-    #   2. The project's pyproject.toml pins torch+torchvision to the cu128
-    #      nightly index. `uv pip install` therefore only resolves against
-    #      that index by default, and llama.cpp's requirements file pins
-    #      packages (e.g. transformers==5.5.1) that only live on PyPI.
-    #      `--index-strategy unsafe-best-match` lets uv consult PyPI as a
-    #      fallback for those packages, which is what we want here.
-    reqs = LLAMA_DIR / "requirements" / "requirements-convert_hf_to_gguf.txt"
-    if reqs.exists():
-        _run([
-            "uv", "pip", "install", "-q",
-            "--index-strategy", "unsafe-best-match",
-            "-r", str(reqs),
-        ])
+    # Python deps for convert_hf_to_gguf.py. We deliberately do NOT install
+    # llama.cpp's requirements-convert_hf_to_gguf.txt — that file pins recent
+    # transformers/torch versions which clash with our cu128-nightly torch
+    # pin and trigger an ABI mismatch (torchvision::nms missing). The venv
+    # already has torch, transformers, numpy, safetensors via pyproject.toml;
+    # we only need gguf + the tokenizer libs llama.cpp's converter expects.
+    _run([
+        "uv", "pip", "install", "-q",
+        "--index-strategy", "unsafe-best-match",
+        "gguf", "sentencepiece", "protobuf",
+    ])
 
 
 def _merge_adapter(base_model: str, adapter_repo: str, token: str, out_dir: Path):
