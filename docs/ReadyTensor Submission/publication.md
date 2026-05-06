@@ -4,7 +4,7 @@
 **Models:** [code-trainer-vision-adapter](https://huggingface.co/cmndcntrlcyber/code-trainer-vision-adapter) · [qwen14b-code-trainer-v6-aggressive](https://huggingface.co/cmndcntrlcyber/qwen14b-code-trainer-v6-aggressive) · [qwen14b-code-trainer-v6-gguf](https://huggingface.co/cmndcntrlcyber/qwen14b-code-trainer-v6-gguf)
 **Dataset:** [code-trainer-offsec-dataset](https://huggingface.co/datasets/cmndcntrlcyber/code-trainer-offsec-dataset)
 **Repository:** [github.com/cmndcntrlcyber/code-trainer-offsec-pipeline](https://github.com/cmndcntrlcyber/code-trainer-offsec-pipeline)
-**W&B projects:** [`rtpi-phase3-vision`](https://wandb.ai/cmndcntrlcyber/rtpi-phase3-vision) · [`rtpi-phase4-qwen14b`](https://wandb.ai/cmndcntrlcyber/rtpi-phase4-qwen14b)
+**W&B projects:** [`rtpi-phase3-vision`](https://wandb.ai/cmndcntrlcyber-c3s-consulting/rtpi-phase3-vision) · [`rtpi-phase43-qwen14b`](https://wandb.ai/cmndcntrlcyber-c3s-consulting/rtpi-phase43-qwen14b)
 
 ---
 

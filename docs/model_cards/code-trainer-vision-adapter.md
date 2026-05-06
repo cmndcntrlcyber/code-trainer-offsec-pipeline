@@ -152,5 +152,5 @@ print(model.generate(image, max_new_tokens=512))
   python -m src.phase3_vision_model.scripts.launch_vision_training \
       --config src/config/v6_config.yaml --wait
   ```
-* **W&B project:** `rtpi-phase3-vision`.
+* **W&B project:** [`rtpi-phase3-vision`](https://wandb.ai/cmndcntrlcyber-c3s-consulting/rtpi-phase3-vision).
 * **Cost:** approximately $18 on `a100-large` (~5.5 h training + ~20 min eval).

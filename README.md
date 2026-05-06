@@ -131,8 +131,8 @@ Training runs are logged to Weights & Biases. The launcher scripts pass a
 when no key is supplied — local dry-runs and air-gapped reproductions stay
 silent, while production runs publish to:
 
-* **Phase 3 vision model:** [`wandb.ai/cmndcntrlcyber/rtpi-phase3-vision`](https://wandb.ai/cmndcntrlcyber/rtpi-phase3-vision)
-* **Phase 4 Qwen-14B fine-tuning:** [`wandb.ai/cmndcntrlcyber/rtpi-phase4-qwen14b`](https://wandb.ai/cmndcntrlcyber/rtpi-phase4-qwen14b)
+* **Phase 3 vision model:** [`wandb.ai/cmndcntrlcyber-c3s-consulting/rtpi-phase3-vision`](https://wandb.ai/cmndcntrlcyber-c3s-consulting/rtpi-phase3-vision)
+* **Phase 4 Qwen-14B fine-tuning:** [`wandb.ai/cmndcntrlcyber-c3s-consulting/rtpi-phase43-qwen14b`](https://wandb.ai/cmndcntrlcyber-c3s-consulting/rtpi-phase43-qwen14b)
 
 To re-enable W&B for an eval-only retroactive run (e.g. to surface metrics for
 a job that originally ran offline):

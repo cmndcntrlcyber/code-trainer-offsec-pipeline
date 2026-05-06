@@ -177,7 +177,7 @@ print(tokenizer.decode(out[0][inputs.shape[1]:], skip_special_tokens=True))
   python -m src.phase4_qwen_finetuning.scripts.launch_full_training \
       --config src/config/v6_config.yaml --best-config aggressive --wait
   ```
-* **W&B project:** `rtpi-phase4-qwen14b` (W&B link in the GitHub README).
+* **W&B project:** [`rtpi-phase43-qwen14b`](https://wandb.ai/cmndcntrlcyber-c3s-consulting/rtpi-phase43-qwen14b).
 * **Cost:** ~$22 on `a100-large` (~7 h, eventually marked ERROR by HF Skills'
   lazy timeout enforcement, but the adapter was already pushed to Hub before
   the kill — see Phase 4A summary).
