@@ -101,17 +101,31 @@ re-evaluated post-hoc against the full val split via job
 
 ### General benchmark — catastrophic-forgetting check (GSM8K, 0-shot)
 
-> Numbers populated by `src.phase4_qwen_finetuning.scripts.launch_benchmark`.
-> Both rows use the same lm-evaluation-harness pipeline (`lm-eval==0.4.4`).
+GSM8K (grade-school math word problems) is orthogonal to the screenshot-to-code
+training task, so any large drop here would indicate catastrophic forgetting on
+general reasoning. Both rows use the same `lm-evaluation-harness` (`lm-eval==0.4.4`)
+pipeline.
 
-| Run | exact-match (strict) |
-|---|---|
-| Base `Qwen/Qwen2.5-Coder-14B-Instruct` | _see `phase4-benchmark-gsm8k-base.json`_ |
-| **+ this adapter** | _see `phase4-benchmark-gsm8k.json`_ |
+| Run | exact_match (flexible-extract) | exact_match (strict-match) |
+|---|---|---|
+| Base `Qwen/Qwen2.5-Coder-14B-Instruct` | 0.6050 ± 0.013 | 0.0000 |
+| **+ this adapter** | **0.6778** ± 0.013 | 0.0000 |
+| Δ | **+0.0728 (+12.0 % relative)** | — |
 
-GSM8K (math word problems) is orthogonal to the screenshot-to-code training
-task, so any large drop here indicates catastrophic forgetting on general
-reasoning.
+**No catastrophic forgetting** — the adapter actually *improves* GSM8K
+performance by 12 % relative. This is consistent with the chat-format SFT
+having taught the model cleaner answer formatting on free-form prompts; the
+LoRA changes did not erase math-reasoning capability.
+
+Notes:
+
+* `flexible-extract` is the meaningful column — it regex-extracts the numeric
+  answer from chat-formatted output. `strict-match` is 0 for both rows
+  because the chat-trained model emits prose like *"The answer is 42"*
+  rather than GSM8K's raw `#### 42` format; this is a formatting artifact,
+  not a reasoning failure.
+* See `phase4-benchmark-gsm8k.json` and `phase4-benchmark-gsm8k-base.json`
+  in this repo for the raw lm-evaluation-harness output.
 
 ## Limitations
 

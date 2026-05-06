@@ -1,0 +1,16 @@
+{
+  "model": "Qwen/Qwen2.5-Coder-14B-Instruct",
+  "adapter": null,
+  "task": "gsm8k",
+  "num_fewshot": 0,
+  "batch_size": 16,
+  "results": {
+    "alias": "gsm8k",
+    "exact_match,strict-match": 0.0,
+    "exact_match_stderr,strict-match": 0.0,
+    "exact_match,flexible-extract": 0.6050037907505686,
+    "exact_match_stderr,flexible-extract": 0.013465354969973201
+  },
+  "lm_eval_version": null,
+  "raw_path": "/tmp/phase4-benchmark/lm_eval_raw.json/Qwen__Qwen2.5-Coder-14B-Instruct/results_2026-05-06T08-44-44.594385.json"
+}

@@ -196,21 +196,30 @@ underperformed at 0.5126, so we kept Phase 4A's adapter.
 
 ### 4.3 Catastrophic-forgetting check — GSM8K, 0-shot
 
-> Run `python -m src.phase4_qwen_finetuning.scripts.launch_benchmark` (and
-> `--baseline`) to populate. Drop the resulting JSONs into `docs/eval/` and
-> re-run `render_publication_charts.py` to embed
-> `assets/gsm8k_forgetting.png` here.
+![GSM8K forgetting check](./assets/gsm8k_forgetting.png)
 
-| Run | exact_match (strict) |
-|---|---|
-| Base `Qwen/Qwen2.5-Coder-14B-Instruct` | _pending_ |
-| **+ adapter `qwen14b-code-trainer-v6-aggressive`** | _pending_ |
+GSM8K (grade-school math word problems) is orthogonal to the screenshot-to-code
+training task. A small drop would be expected; a large drop would indicate
+catastrophic forgetting of general reasoning.
 
-GSM8K (math word problems) is orthogonal to the screenshot-to-code training
-task. A small drop here would be expected; a large drop would indicate
-catastrophic forgetting of general reasoning. We use a single epoch of LoRA
-on a single domain at r = 64, so the prior is *no major drop*. We will
-update this section with the empirical numbers.
+| Run | exact_match (flexible-extract) | exact_match (strict-match) |
+|---|---|---|
+| Base `Qwen/Qwen2.5-Coder-14B-Instruct` | 0.6050 ± 0.013 | 0.0000 |
+| **+ adapter `qwen14b-code-trainer-v6-aggressive`** | **0.6778** ± 0.013 | 0.0000 |
+| Δ | **+0.0728 (+12.0 % relative)** | — |
+
+**Result: no forgetting — and a small lift.** The adapter scores **67.8 %**
+on GSM8K vs the base model's **60.5 %**, a +12 % relative improvement on a
+domain we never trained on. This is consistent with the chat-format SFT
+having taught the model cleaner answer formatting on free-form prompts; the
+LoRA changes did not erase math-reasoning capability.
+
+`strict-match` (which expects GSM8K's raw `#### 42` answer convention) is
+zero on both rows because the chat-trained model emits prose like *"The
+answer is 42"* — a formatting artifact, not a reasoning failure. Both rows
+use the same `lm-evaluation-harness` (`lm-eval==0.4.4`) pipeline, launched
+via
+[`launch_benchmark.py`](https://github.com/cmndcntrlcyber/code-trainer-offsec-pipeline/blob/main/src/phase4_qwen_finetuning/scripts/launch_benchmark.py).
 
 ### 4.4 Cost log
 
@@ -234,6 +243,12 @@ update this section with the empirical numbers.
 * **`aggressive` LoRA at r = 64.** Each step up the sweep ladder bought a
   meaningful drop in eval loss; the largest config did not show signs of
   overfitting in 1 epoch.
+* **No forgetting — and a small lift on GSM8K.** The single-epoch / single-
+  domain LoRA preserved general math reasoning (60.5 % → 67.8 %, +12 %
+  relative). We attribute the lift to chat-format SFT teaching cleaner
+  answer formatting; the result strongly suggests that LoRA at this rank
+  and budget is conservative enough to safely add task-specific behaviour
+  without erasing capability.
 * **More unique examples > more passes.** Phase 4B's repeated-pass approach
   was the obvious next experiment and the obvious one to reject — the data
   preferred breadth over depth at this scale.

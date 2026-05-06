@@ -60,10 +60,13 @@ def _ensure_llama_cpp():
         ["cmake", "--build", "build", "-j", "--target", "llama-quantize"],
         cwd=str(LLAMA_DIR),
     )
-    # Python deps for convert_hf_to_gguf.py
+    # Python deps for convert_hf_to_gguf.py — install into the active uv-managed
+    # venv. uv venvs don't ship pip by default, so `python -m pip` would fail
+    # (the launcher invokes us via `uv run python -m ...`). Use `uv pip install`
+    # instead, which is pip-compatible and works inside the same venv.
     reqs = LLAMA_DIR / "requirements" / "requirements-convert_hf_to_gguf.txt"
     if reqs.exists():
-        _run([sys.executable, "-m", "pip", "install", "-q", "-r", str(reqs)])
+        _run(["uv", "pip", "install", "-q", "-r", str(reqs)])
 
 
 def _merge_adapter(base_model: str, adapter_repo: str, token: str, out_dir: Path):

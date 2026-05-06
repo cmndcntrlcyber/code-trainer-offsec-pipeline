@@ -100,10 +100,18 @@ def render_phase3_metrics():
 
 
 def _gsm8k_score(payload: dict) -> float | None:
+    """Pick the flexible-extract exact_match (regex over chat output). The
+    strict-match score is 0 for both base and adapter because the chat-trained
+    model emits prose ("The answer is 42") rather than GSM8K's #### 42 raw
+    format — so it would compare two zeros, hiding all signal."""
     results = payload.get("results", {})
-    # lm-eval reports gsm8k as e.g. {"exact_match,strict-match": 0.45, ...}
+    # Prefer flexible-extract; fall back to any exact_match-like key.
+    flex = results.get("exact_match,flexible-extract")
+    if isinstance(flex, (int, float)):
+        return float(flex)
     for k, v in results.items():
-        if k.startswith("exact_match") and isinstance(v, (int, float)):
+        if k.startswith("exact_match") and "stderr" not in k \
+                and isinstance(v, (int, float)):
             return float(v)
     return None
 
